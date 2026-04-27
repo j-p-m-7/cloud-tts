@@ -38,13 +38,13 @@ def populate_queue():
 
                     # SQS send_message_batch supports max 10 messages
                     if len(entries) == 10:
-                        sqs.send_message_batch(QueueUrl=QUEUE_URL, Entries=entries)
+                        sqs.send_message_batch(QueueUrl=SQS_QUEUE_URL, Entries=entries)
                         print(f"Sent batch of 10...")
                         entries = []
 
     # Send any remaining messages
     if entries:
-        sqs.send_message_batch(QueueUrl=QUEUE_URL, Entries=entries)
+        sqs.send_message_batch(QueueUrl=SQS_QUEUE_URL, Entries=entries)
         print(f"Sent final batch of {len(entries)}.")
 
 if __name__ == "__main__":
