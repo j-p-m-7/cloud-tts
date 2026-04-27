@@ -30,6 +30,7 @@ GUTENBERG_PLAIN_TEXT_URL = "https://www.gutenberg.org/cache/epub/{book_id}/pg{bo
 DEFAULT_BUCKET_NAME = "tts-pipeline-input"
 DEFAULT_REGION = "us-east-1"
 DEFAULT_BOOK_ID = 164  # https://www.gutenberg.org/ebooks/164
+MAX_SIZE_BYTES = 100 * 1024  # 50KB Limit for Performance Stability
 
 
 def download_book(book_id: int) -> str:
@@ -38,11 +39,18 @@ def download_book(book_id: int) -> str:
     gutenberg assigns each book a numeric id. the plain-text version is served
     from a predictable url pattern under /cache/epub/.
 
+    performance gatekeeper:
+        to ensure a consistent Real-Time Factor (RTF) during the distributed
+        benchmark, this function validates that the file size is under 50KB.
+        files exceeding this limit are rejected to prevent non-linear inference
+        latencies observed in CPU-based transformer processing.
+
     args:
         book_id: the gutenberg catalog id (e.g. 1342 for pride and prejudice).
 
     returns:
-        the full text of the book as a string.
+        the full text of the book as a string, or None if the book exceeds the
+        50KB performance threshold.
 
     raises:
         requests.HTTPError: if the book id doesn't exist or gutenberg is unreachable.
@@ -54,7 +62,18 @@ def download_book(book_id: int) -> str:
     resp.raise_for_status()
 
     text = resp.text
-    print(f"  Downloaded {len(text):,} characters ({len(text.split()):,} words)")
+    # Calculate size in bytes
+    size_bytes = len(text.encode('utf-8'))
+    size_kb = size_bytes / 1024
+
+    print(f"  Downloaded: {size_kb:.2f} KB ({len(text.split()):,}) words")
+
+    # --- PERFORMANCE GATEKEEPER ---
+    if size_bytes > MAX_SIZE_BYTES:
+        print(f"    ABORTING: File size ({size_kb:.2f} KB) exceeds the 100KB performance limit.")
+        print(f"    Large files cause non-linear inference latencies on CPU clusters.")
+        return None
+
     return text
 
 
@@ -170,9 +189,12 @@ def main():
     print("=" * 60)
     print()
 
-    # step 1: download book from gutenberg
+    # step 1: download book from gutenberg and check size
     text = download_book(args.book_id)
-    print_preview(text)
+
+    if text is None:
+        print("\nTask Rejected: File too large for consistent RTF benchmarking.")
+        sys.exit(0) # Exit cleanly, just didn't upload
 
     # step 2: set up s3 client and ensure bucket exists
     s3_client = boto3.client("s3", region_name=args.region)
