@@ -1,12 +1,19 @@
+import os
 import boto3
+from dotenv import load_dotenv
 
-# Configuration - CHANGE THESE
+load_dotenv()
+
+# Configuration
 REGION = 'us-east-1'
 BUCKET_NAME = 'tts-pipeline-input'
 PREFIX = 'books/gutenberg/'
-QUEUE_URL = 'https://sqs.us-east-1.amazonaws.com/887678038115/tts-queue'
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL")
 
-# Explicitly set the region here
+if not SQS_QUEUE_URL:
+    print("ERROR: SQS_QUEUE_URL environment variable is not set.")
+    sys.exit(1)
+
 s3 = boto3.client('s3', region_name=REGION)
 sqs = boto3.client('sqs', region_name=REGION)
 

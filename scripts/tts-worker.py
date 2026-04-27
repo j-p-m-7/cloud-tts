@@ -3,12 +3,19 @@ import requests
 import time
 import os
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ==========================================================
 # CONFIGURATION
 # ==========================================================
-# Use the URL from your SQS Console
-SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/887678038115/tts-queue")
+
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL")
+
+if not SQS_QUEUE_URL:
+    print("ERROR: SQS_QUEUE_URL environment variable is not set.")
+    sys.exit(1)
 
 # S3 Buckets (Separated as per your report logic)
 INPUT_BUCKET = "tts-pipeline-input"
@@ -18,7 +25,6 @@ OUTPUT_BUCKET = "tts-pipeline-output"
 API_URL = "http://localhost:8880/v1/audio/speech"
 
 # Initialize Clients
-# Note: No keys needed if IAM Role is attached to EC2
 sqs = boto3.client('sqs', region_name='us-east-1')
 s3 = boto3.client('s3')
 
