@@ -12,7 +12,7 @@ sudo docker run -d \
   -p 8880:8880 \
   ghcr.io/remsky/kokoro-fastapi-cpu:latest
 
-# 3. Start YOUR Worker from GitHub
+# 3. Start TTS-Worker from GitHub
 sudo docker run -d \
   --name tts-worker \
   --restart always \

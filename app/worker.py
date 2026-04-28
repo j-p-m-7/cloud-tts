@@ -59,7 +59,7 @@ def process_worker():
                 # Cost for this specific book
                 cost_usd = (duration / 3600) * INSTANCE_COST_PER_HR
 
-                # 5. LOG TO S3 (The "Paper Trail")
+                # 5. LOG TO S3
                 log_data = {
                     "timestamp": datetime.now().isoformat(),
                     "instance_type": INSTANCE_TYPE,
