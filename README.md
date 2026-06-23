@@ -8,7 +8,7 @@ A cloud-native, distributed text-to-speech (TTS) pipeline that parallelizes the 
 
 See [architecture.md](architecture.md) for detailed C4 design diagrams and tradeoffs.
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 ├── app/                        # Worker container ecosystem
@@ -20,15 +20,14 @@ See [architecture.md](architecture.md) for detailed C4 design diagrams and trade
 │   └── iam.tf                  # Least-privilege IAM roles and profiles
 ├── scripts/                    # Ingestion & analytics tooling
 │   ├── gutenberg_to_s3.py      # Gutenberg text ingestion engine
-│   ├── populate_sqs.py         # SQS safe batch processing script
-│   └── analysis.py             # Performance & cost aggregation benchmark
+│   └── populate_sqs.py         # SQS safe batch processing script
 └── requirements.txt            # Python core dependencies
 
 ```
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Configure AWS & Environment
 
@@ -85,7 +84,7 @@ python scripts/analysis.py
 
 ---
 
-## 🛠️ Core Features & 2026 Standards
+## Core Features & 2026 Standards
 
 * **Infrastructure as Code:** 100% automated provisioning via **Terraform** covering network security boundaries, storage, and IAM profiles.
 * **Elastic Scaling:** EC2 Auto Scaling Groups (`c8g.xlarge` ARM64 instances) scale horizontally based on cluster message pressure.
