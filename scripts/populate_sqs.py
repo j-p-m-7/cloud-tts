@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Setup structured logging
+# logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -42,7 +42,7 @@ def populate_queue():
                 file_key = obj["Key"]
 
                 if file_key.endswith(".txt"):
-                    # Use unique string hash or token instead of index string for Id resiliency
+                    # use unique string hash
                     entries.append(
                         {
                             "Id": f"msg_{batch_count}_{len(entries)}",
@@ -65,11 +65,11 @@ def populate_queue():
 
 
 def _send_batch_safely(batch_entries):
-    """Handles SQS batch verification to protect against partial network drops."""
+    """handles sqs batch processing"""
     try:
         response = sqs.send_message_batch(QueueUrl=SQS_QUEUE_URL, Entries=batch_entries)
 
-        # Check for partial failures within the successful HTTP response
+        # check for partial failures within the successful HTTP response
         if "Failed" in response and response["Failed"]:
             for failure in response["Failed"]:
                 logging.warning(

@@ -33,14 +33,12 @@ resource "aws_launch_template" "worker_template" {
               sudo systemctl start docker
               sudo systemctl enable docker
 
-              # Initialize Kokoro Translation Engine Container
               sudo docker run -d \
                 --name kokoro-api \
                 --restart always \
                 -p 8880:8880 \
                 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 
-              # Initialize Primary Pipeline Processing Image
               sudo docker run -d \
                 --name tts-worker \
                 --restart always \

@@ -29,7 +29,7 @@ s3 = boto3.client("s3", region_name="us-east-1")
 
 
 def run_single_test():
-    logging.info("🚀 Initializing Test Worker...")
+    logging.info("Initializing Test Worker...")
 
     try:
         response = sqs.receive_message(
@@ -51,31 +51,29 @@ def run_single_test():
     receipt_handle = msg["ReceiptHandle"]
     book_key = msg["Body"]
 
-    # Robust path building using pathlib
     pure_path = pathlib.PurePosixPath(book_key)
-    # Replaces the root 'books' with 'audio' safely, regardless of substrings
     relative_parts = pure_path.relative_to("books")
     output_key = str(
         pathlib.PurePosixPath("audio") / relative_parts.with_suffix(".mp3")
     )
 
     try:
-        logging.info(f"📥 Found Task: {book_key}")
+        logging.info(f" Found Task: {book_key}")
 
-        # 2. Extract
-        logging.info("📖 Downloading text from S3...")
+        # get text from s3
+        logging.info(" Downloading text from S3...")
         text_obj = s3.get_object(Bucket=INPUT_BUCKET, Key=book_key)
         content = text_obj["Body"].read().decode("utf-8")
 
-        # 3. Transform (Synthesis)
-        logging.info("🎙️ Requesting compute from Kokoro API Engine...")
+        # more logging
+        logging.info(" Requesting compute from Kokoro API Engine...")
         start_time = time.time()
 
         res = requests.post(
             API_URL,
             json={"input": content, "voice": "af_heart", "response_format": "mp3"},
             timeout=300,
-        )  # Reduced to 5 mins for realistic unit tests
+        )
 
         if res.status_code != 200:
             raise requests.exceptions.HTTPError(
@@ -83,10 +81,10 @@ def run_single_test():
             )
 
         duration = time.time() - start_time
-        logging.info(f"✨ Synthesis Complete in {duration:.2f}s")
+        logging.info(f" Synthesis Complete in {duration:.2f}s")
 
-        # 4. Load
-        logging.info(f"📤 Uploading payload to s3://{OUTPUT_BUCKET}/{output_key}")
+        # even more logging
+        logging.info(f" Uploading payload to s3://{OUTPUT_BUCKET}/{output_key}")
         s3.put_object(
             Bucket=OUTPUT_BUCKET,
             Key=output_key,
@@ -94,18 +92,16 @@ def run_single_test():
             ContentType="audio/mpeg",
         )
 
-        # 5. Commit/Acknowledge
+        # remove sqs message from queue
         sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
-        logging.info("✅ Success! Task completed and message removed from SQS.")
+        logging.info(" Success! Task completed and message removed from SQS.")
 
     except Exception as pipeline_error:
-        logging.error(f"⚠️ Test Execution Failed: {pipeline_error}")
+        logging.error(f" Test Execution Failed: {pipeline_error}")
 
-        # RESILIENCY PATTERN: Change visibility timeout back to 0 so
-        # another worker or test instance can retry processing immediately.
         try:
             logging.info(
-                "🔄 Backing off: Returning message to queue immediately for re-processing..."
+                " Backing off: Returning message to queue immediately for re-processing..."
             )
             sqs.change_message_visibility(
                 QueueUrl=SQS_QUEUE_URL,

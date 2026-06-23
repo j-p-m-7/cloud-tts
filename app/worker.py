@@ -9,13 +9,13 @@ import boto3
 import requests
 from botocore.exceptions import ClientError
 
-# Setup structured logging for system aggregators (CloudWatch/Datadog)
+# logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s",
 )
 
-# CONFIGURATION
+# config
 INPUT_BUCKET = "tts-pipeline-input"
 OUTPUT_BUCKET = "tts-pipeline-output"
 LOGS_BUCKET = "tts-pipeline-output"
@@ -28,20 +28,18 @@ if not SQS_QUEUE_URL:
     )
     sys.exit(1)
 
-# Initialize AWS Instance Metadata (IMDSv2)
+# aws instance metadata (IMDSv2)
 INSTANCE_TYPE = "local-test-instance"
 INSTANCE_COST_PER_HR = 0.00000
 
 try:
-    logging.info("📡 Querying IMDSv2 for AWS hardware profile...")
-    # Fetch token for IMDSv2 (6-hour token lifecycle)
+    logging.info("querying...")
     token_headers = {"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
     token_res = requests.put(
         "http://169.254.169.254/latest/api/token", headers=token_headers, timeout=2
     )
 
     if token_res.status_code == 200:
-        # Fetch actual instance type from localized metadata server
         metadata_headers = {"X-aws-ec2-metadata-token": token_res.text}
         INSTANCE_TYPE = requests.get(
             "http://169.254.169.254/latest/meta-data/instance-type",
@@ -49,23 +47,19 @@ try:
             timeout=2,
         ).text
 
-        # Keep pricing logic scalable based on dynamic instance classification
+        # pricing
         if "c8g.xlarge" in INSTANCE_TYPE:
             INSTANCE_COST_PER_HR = 0.15952
         elif "c8g.2xlarge" in INSTANCE_TYPE:
             INSTANCE_COST_PER_HR = 0.31904
         else:
-            INSTANCE_COST_PER_HR = 0.16000  # Generalized baseline fallback
+            INSTANCE_COST_PER_HR = 0.16000
 
-        logging.info(
-            f"📍 AWS Environment Validated: Dynamic Instance Type recognized as {INSTANCE_TYPE}"
-        )
+        logging.info(f"AWS Instance Type: {INSTANCE_TYPE}")
 except (requests.exceptions.RequestException, Exception) as imds_error:
-    logging.warning(
-        f"⚠️ IMDSv2 query failed ({imds_error}). Defaulting to local-test profile."
-    )
+    logging.warning(f"IMDSv2 query failed ({imds_error}).")
 
-# Initialize AWS SDK Clients
+# initalize aws sdk clients
 try:
     sqs = boto3.client("sqs", region_name="us-east-1")
     s3 = boto3.client("s3", region_name="us-east-1")
@@ -76,9 +70,10 @@ except Exception as init_error:
 
 def process_worker():
     logging.info(
-        f"🚀 Worker Online | Instance: {INSTANCE_TYPE} | Polling: {SQS_QUEUE_URL}"
+        f" Worker Online | Instance: {INSTANCE_TYPE} | Polling: {SQS_QUEUE_URL}"
     )
 
+    # get message from sqs
     while True:
         try:
             response = sqs.receive_message(
@@ -100,9 +95,9 @@ def process_worker():
         receipt_handle = msg["ReceiptHandle"]
 
         try:
-            logging.info(f"📥 Processing task: {book_key}")
+            logging.info(f" Processing task: {book_key}")
 
-            # 1. Download Text from S3
+            # pull text from s3
             try:
                 text_obj = s3.get_object(Bucket=INPUT_BUCKET, Key=book_key)
                 content = text_obj["Body"].read().decode("utf-8")
@@ -114,7 +109,7 @@ def process_worker():
                 _release_message(receipt_handle)
                 continue
 
-            # 2. Synthesis & Timing
+            # make tts request
             start_time = time.time()
             try:
                 res = requests.post(
@@ -144,16 +139,16 @@ def process_worker():
 
             duration = time.time() - start_time
 
-            # 3. Upload Audio Output
+            # upload audio output to s3
             output_key = book_key.replace("books/", "audio/").replace(".txt", ".mp3")
             s3.put_object(Bucket=OUTPUT_BUCKET, Key=output_key, Body=res.content)
 
-            # 4. Calculate Metrics
+            # calculate metrics
             est_audio_mins = word_count / 150
             rtf = est_audio_mins / (duration / 60)
             cost_usd = (duration / 3600) * INSTANCE_COST_PER_HR
 
-            # 5. Log Telemetry to S3 Data Lakehouse
+            # log metrics
             log_data = {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "instance_type": INSTANCE_TYPE,
@@ -167,10 +162,10 @@ def process_worker():
             log_key = book_key.replace("books/", "logs/").replace(".txt", ".json")
             s3.put_object(Bucket=LOGS_BUCKET, Key=log_key, Body=json.dumps(log_data))
 
-            # 6. Success: Delete from SQS Queue
+            # remove processed item from sqs queue
             sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
             logging.info(
-                f"✅ Successfully finished {book_key} | RTF: {rtf:.2f}x | Cost: ${cost_usd:.5f}"
+                f" Successfully finished {book_key} | RTF: {rtf:.2f}x | Cost: ${cost_usd:.5f}"
             )
 
         except Exception as unhandled_pipeline_error:

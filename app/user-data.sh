@@ -1,18 +1,18 @@
 #!/bin/bash
-# 1. Setup Docker
+# setup docker
 sudo dnf update -y
 sudo dnf install -y docker
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# 2. Start the Kokoro API Engine
+# start kokoro api container
 sudo docker run -d \
   --name kokoro-api \
   --restart always \
   -p 8880:8880 \
   ghcr.io/remsky/kokoro-fastapi-cpu:latest
 
-# 3. Start TTS-Worker from GitHub
+# start tts workers
 sudo docker run -d \
   --name tts-worker \
   --restart always \
