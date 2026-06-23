@@ -1,95 +1,93 @@
+Here is a succinct, highly scannable, and modern version of the `README.md` that highlights your infrastructure improvements without the fluff.
+
+---
+
 # Distributed TTS Pipeline
 
-A cloud-native, distributed text-to-speech pipeline for converting public-domain books from [Project Gutenberg](https://www.gutenberg.org/) into audiobooks using parallel processing across multiple compute nodes on AWS.
+A cloud-native, distributed text-to-speech (TTS) pipeline that parallelizes the conversion of public-domain books from [Project Gutenberg](https://www.gutenberg.org/) into audiobooks using an elastic compute fleet on AWS.
 
-See [architecture.md](architecture.md) for the full system design and C4 diagrams.
+See [architecture.md](architecture.md) for detailed C4 design diagrams and tradeoffs.
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
-├── architecture.md              # system architecture doc (C1/C2 diagrams, component descriptions)
-├── scripts/
-│   └── gutenberg_to_s3.py       # proof-of-concept: gutenberg → s3 ingestion
-├── requirements.txt             # python dependencies
-└── README.md
+├── app/                        # Worker container ecosystem
+│   ├── Dockerfile              # ARM64 optimized worker image
+│   └── worker.py               # Core processing daemon with IMDSv2 telemetry
+├── terraform/                  # Infrastructure as Code (IaC)
+│   ├── main.tf                 # S3 Storage & SQS/DLQ messaging layers
+│   ├── asg.tf                  # EC2 Auto Scaling Group & user-data scripts
+│   └── iam.tf                  # Least-privilege IAM roles and profiles
+├── scripts/                    # Ingestion & analytics tooling
+│   ├── gutenberg_to_s3.py      # Gutenberg text ingestion engine
+│   ├── populate_sqs.py         # SQS safe batch processing script
+│   └── analysis.py             # Performance & cost aggregation benchmark
+└── requirements.txt            # Python core dependencies
+
 ```
 
-## Prerequisites
+---
 
-- Python 3.10+
-- An AWS account with programmatic access (access key id + secret access key)
-- AWS CLI
+## ⚡ Quick Start
 
-### Install AWS CLI (macOS)
+### 1. Configure AWS & Environment
 
-```bash
-brew install awscli
-```
-
-### Configure AWS credentials
-
-We need an **access key**, not the console login password. To create one:
-
-1. Log into the [AWS console](https://console.aws.amazon.com/) as a root or admin user
-2. Go to **IAM** > **Users** > select the target user > **Security credentials**
-3. Under **Access keys**, click **Create access key**
-4. Copy the access key id and secret access key
-
-Then configure your local machine:
+Ensure you have the AWS CLI installed and configured with programmatic access credentials:
 
 ```bash
 aws configure
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+
 ```
 
-It will prompt for:
-- **AWS Access Key ID**
-- **AWS Secret Access Key**
-- **Default region name:** `us-east-1`
-- **Default output format:** `json`
+### 2. Deploy Infrastructure (Terraform)
 
-### Set up Python environment
+Provision the entire self-healing infrastructure stack automatically:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+cd terraform
+terraform init
+terraform apply -auto-approve
+
 ```
 
-## Scripts
+*Note: Save the `sqs_queue_url` from the output and export it:* `export SQS_QUEUE_URL="<your_sqs_url>"`
 
-### `scripts/gutenberg_to_s3.py`
+### 3. Run Pipeline Scripts
 
-Proof-of-concept for the ingestion step of the pipeline. Downloads a plain-text book from Project Gutenberg, uploads it to an S3 bucket, and verifies the round-trip by reading it back.
-
-**What it does:**
-
-1. Fetches a book's plain text from `gutenberg.org/cache/epub/<id>/pg<id>.txt`
-2. Creates an S3 bucket (`tts-pipeline-input`) if it doesn't exist
-3. Uploads the text to `s3://tts-pipeline-input/books/gutenberg/<id>.txt`
-4. Reads the object back from S3 and verifies the content matches
-5. Lists all objects in the bucket
-
-**Usage:**
+**Ingest Text to S3:**
 
 ```bash
-source venv/bin/activate
-
-# default book (gutenberg id 164)
-python scripts/gutenberg_to_s3.py
-
-# specify a different book
 python scripts/gutenberg_to_s3.py --book-id 1342
 
-# custom bucket name and region
-python scripts/gutenberg_to_s3.py --bucket my-bucket --region us-west-2
 ```
 
-**Options:**
+**Populate SQS Queue:**
 
-| Flag | Default | Description |
-|---|---|---|
-| `--book-id` | `164` | Gutenberg book ID |
-| `--bucket` | `tts-pipeline-input` | S3 bucket name |
-| `--region` | `us-east-1` | AWS region |
+```bash
+python scripts/populate_sqs.py
 
-You can browse available books at [gutenberg.org](https://www.gutenberg.org/).
+```
+
+**Run Single Unit Test Worker Locally:**
+
+```bash
+python scripts/tts_worker-single_instance.py
+
+```
+
+**Analyze Benchmarks:**
+
+```bash
+python scripts/analysis.py
+
+```
+
+---
+
+## 🛠️ Core Features & 2026 Standards
+
+* **Infrastructure as Code:** 100% automated provisioning via **Terraform** covering network security boundaries, storage, and IAM profiles.
+* **Elastic Scaling:** EC2 Auto Scaling Groups (`c8g.xlarge` ARM64 instances) scale horizontally based on cluster message pressure.
+* **Fail-Safe Architecture:** Integrated SQS **Dead Letter Queue (DLQ)** with worker back-off mechanics (`change_message_visibility`) to handle corrupted files or API drops gracefully.
+* **Dynamic Telemetry:** Workers query **IMDSv2** to log execution hardware and project precise cost-efficiency matrices to the S3 data lakehouse without hardcoded values.
