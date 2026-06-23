@@ -17,5 +17,5 @@ sudo docker run -d \
   --name tts-worker \
   --restart always \
   --network="host" \
-  -e SQS_QUEUE_URL="https://sqs.us-east-1.amazonaws.com/887678038115/tts-queue" \
+  -e SQS_QUEUE_URL="${aws_sqs_queue.tts_queue.url}" \
   ghcr.io/j-p-m-7/tts-worker:latest
