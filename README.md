@@ -11,17 +11,22 @@ See [architecture.md](architecture.md) for detailed C4 design diagrams and trade
 ## Project Structure
 
 ```
-├── app/                        # Worker container ecosystem
+├── app/
 │   ├── Dockerfile              # ARM64 optimized worker image
+│   ├── user-data.sh            # EC2 provisioning and container startup script
 │   └── worker.py               # Core processing daemon with IMDSv2 telemetry
-├── terraform/                  # Infrastructure as Code (IaC)
+├── terraform/
 │   ├── main.tf                 # S3 Storage & SQS/DLQ messaging layers
-│   ├── asg.tf                  # EC2 Auto Scaling Group & user-data scripts
-│   └── iam.tf                  # Least-privilege IAM roles and profiles
-├── scripts/                    # Ingestion & analytics tooling
+│   ├── variables.tf            # Environment and region variables
+│   ├── outputs.tf              # Resource identifier exports
+│   ├── iam.tf                  # Least-privilege IAM roles and profiles
+│   └── asg.tf                  # EC2 Auto Scaling Group & template links
+├── scripts/
 │   ├── gutenberg_to_s3.py      # Gutenberg text ingestion engine
-│   └── populate_sqs.py         # SQS safe batch processing script
-└── requirements.txt            # Python core dependencies
+│   ├── populate_sqs.py         # SQS safe batch processing script
+│   └── tts_worker-single_instance.py # Local workflow unit testing script
+├── requirements.txt            # Legacy Python core dependencies
+└── architecture.md             # System architecture documentation
 
 ```
 
