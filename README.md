@@ -1,6 +1,4 @@
-Here is a succinct, highly scannable, and modern version of the `README.md` that highlights your infrastructure improvements without the fluff.
 
----
 
 # Distributed TTS Pipeline
 
